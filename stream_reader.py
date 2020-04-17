@@ -433,8 +433,14 @@ class DataProcessor(object):
                     #src_js = json.load(f)
                     for line in f.readlines():
                         line = line.strip().split(', ')
-                        sent = line[1].split(': ')[1]
-                        final = line[2].split(': ')[1] == 'final'
+                        # if len(line) < 3 or len(line[2].split(': ')) < 2:
+                        #     embed()
+                        #     print(line)
+                        if len(line) > 5:
+                            sent = ', '.join(line[1:-3])[14:]
+                        else:
+                            sent = line[1].split(': ')[1]
+                        final = line[-3].split(': ')[1] == 'final'
                         # t = line[4].split(': ')[1]
                         #if len(src_js[-1]) == 0:
                         #    src_js[-1].append([])

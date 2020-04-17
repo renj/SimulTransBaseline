@@ -27,6 +27,7 @@ from utils.check import check_gpu, check_version
 
 # include task-specific libs
 import stream_reader as reader
+# import reader
 from model import Transformer, position_encoding_init
 from sacremoses import MosesDetruecaser, MosesDetokenizer
 from IPython import embed
@@ -55,7 +56,6 @@ def do_predict(args):
         place = fluid.CPUPlace()
 
     # define the data generator
-    '''
     # old reader
     processor = reader.DataProcessor(fpattern=args.predict_file,
                                      src_vocab_fpath=args.src_vocab_fpath,
@@ -93,6 +93,7 @@ def do_predict(args):
                                      n_head=args.n_head,
                                      stream=args.stream,
                                      src_bpe_dict=args.src_bpe_dict)
+    '''
     batch_generator = processor.data_generator(phase="predict", place=place)
     args.src_vocab_size, args.trg_vocab_size, args.bos_idx, args.eos_idx, \
         args.unk_idx = processor.get_vocab_summary()
@@ -157,6 +158,7 @@ def do_predict(args):
                 max_len=args.max_out_len,
                 waitk=args.waitk,
                 stream=args.stream)
+            # embed()
             finished_seq = finished_seq.numpy()
             finished_scores = finished_scores.numpy()
             for idx, ins in enumerate(finished_seq):
@@ -164,14 +166,15 @@ def do_predict(args):
                     if beam_idx >= args.n_best: break
                     id_list = post_process_seq(beam, args.bos_idx, args.eos_idx)
                     word_list = [trg_idx2word[id] for id in id_list]
-                    if args.waitk > 0:
-                        # for wait-k models, wait k words in the beginning
-                        word_list = [b''] * (args.waitk-1) + word_list
-                    else:
-                        # for full sentence model, wait until the end
-                        word_list = [b''] * (len(real_read[idx].numpy())-1) + word_list
 
                     if args.stream:
+                        if args.waitk > 0:
+                            # for wait-k models, wait k words in the beginning
+                            word_list = [b''] * (args.waitk-1) + word_list
+                        else:
+                            # for full sentence model, wait until the end
+                            word_list = [b''] * (len(real_read[idx].numpy())-1) + word_list
+
                         final_output = []
                         real_output = []
                         _read = real_read[idx].numpy()
