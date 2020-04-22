@@ -1076,7 +1076,8 @@ class Transformer(Layer):
             caches = map_structure(  # can not be reshaped since the 0 size
                 lambda x: x if i == 0 else merge_batch_beams(x), caches)
             # if i >= len(enc_outputs):
-            if True:
+            # if True:
+            if waitk < 0 or i+waitk-1 >= len(enc_outputs):
                 #logits = self.decoder(trg_word, trg_pos, None, trg_src_attn_bias,
                 #                  enc_outputs[-1], caches)
                 _e = enc_outputs[-1]
@@ -1085,7 +1086,7 @@ class Transformer(Layer):
             else:
                 _e = enc_outputs[i]
                 logits = self.decoder(trg_word, trg_pos, None, trg_src_attn_bias[:, :, :, :_e.shape[1]],
-                                  _e, caches)
+                                  [_e], caches)
             # caches = update_states(split_batch_beams, caches)
             caches = map_structure(split_batch_beams, caches)
             step_log_probs = split_batch_beams(
