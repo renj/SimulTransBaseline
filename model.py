@@ -18,6 +18,7 @@ import numpy as np
 
 import paddle.fluid as fluid
 import paddle.fluid.layers as layers
+from paddle.fluid.layers.utils import map_structure
 from paddle.fluid.dygraph import Embedding, LayerNorm, Linear, Layer, to_variable
 from paddle.fluid.dygraph.learning_rate_scheduler import LearningRateDecay
 from IPython import embed
@@ -932,7 +933,8 @@ class Transformer(Layer):
                      max_len=256,
                      waitk=-1,
                      stream=False):
-        if beam_size == 1:
+        # if beam_size == 1:
+        if False:
             return self._greedy_search(src_word,
                                        src_pos,
                                        src_slf_attn_bias,
@@ -1051,6 +1053,7 @@ class Transformer(Layer):
             expand_to_beam_size(trg_src_attn_bias, beam_size))
         for i in range(len(enc_outputs)):
             enc_outputs[i] = merge_batch_beams(expand_to_beam_size(enc_outputs[i], beam_size))
+        # enc_outputs = merge_batch_beams(expand_to_beam_size(enc_outputs, beam_size))
         ## init states (caches) for transformer, need to be updated according to selected beam
         caches = [{
             "k":
@@ -1069,16 +1072,22 @@ class Transformer(Layer):
             trg_pos = layers.fill_constant(shape=trg_word.shape,
                                            dtype="int64",
                                            value=i)
-            caches = update_states(  # can not be reshaped since the 0 size
+            # caches = update_states(  # can not be reshaped since the 0 size
+            caches = map_structure(  # can not be reshaped since the 0 size
                 lambda x: x if i == 0 else merge_batch_beams(x), caches)
-            if i >= len(enc_outputs):
-                logits = self.decoder(trg_word, trg_pos, None, trg_src_attn_bias,
-                                  enc_outputs[-1], caches)
+            # if i >= len(enc_outputs):
+            if True:
+                #logits = self.decoder(trg_word, trg_pos, None, trg_src_attn_bias,
+                #                  enc_outputs[-1], caches)
+                _e = enc_outputs[-1]
+                logits = self.decoder(trg_word, trg_pos, None, trg_src_attn_bias[:, :, :, :_e.shape[1]],
+                                  [_e], caches)
             else:
                 _e = enc_outputs[i]
                 logits = self.decoder(trg_word, trg_pos, None, trg_src_attn_bias[:, :, :, :_e.shape[1]],
                                   _e, caches)
-            caches = update_states(split_batch_beams, caches)
+            # caches = update_states(split_batch_beams, caches)
+            caches = map_structure(split_batch_beams, caches)
             step_log_probs = split_batch_beams(
                 layers.log(layers.softmax(logits)))
             step_log_probs = mask_probs(step_log_probs, finished,
@@ -1096,7 +1105,8 @@ class Transformer(Layer):
                 topk_indices, vocab_size_tensor)
 
             # update states
-            caches = update_states(lambda x: gather(x, beam_indices, batch_pos),
+            # caches = update_states(lambda x: gather(x, beam_indices, batch_pos),
+            caches = map_structure(lambda x: gather(x, beam_indices, batch_pos),
                                    caches)
             log_probs = gather(log_probs, topk_indices, batch_pos)
             finished = gather(finished, beam_indices, batch_pos)
@@ -1129,6 +1139,7 @@ class Transformer(Layer):
                        max_len=256,
                        waitk=-1,
                        stream=False):
+
         # run encoder
         # enc_output = self.encoder(src_word, src_pos, src_slf_attn_bias)
         '''
